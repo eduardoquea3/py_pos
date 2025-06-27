@@ -1,0 +1,18 @@
+[project]
+name = "backoffice-pos"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.16.2",
+    "bcrypt>=4.3.0",
+    "email-validator>=2.2.0",
+    "fastapi[standard]>=0.115.12",
+    "passlib>=1.7.4",
+    "psycopg2-binary>=2.9.10",
+    "pyjwt>=2.10.1",
+    "python-dotenv>=1.1.0",
+    "python-multipart>=0.0.20",
+    "slowapi>=0.1.9",
+]
