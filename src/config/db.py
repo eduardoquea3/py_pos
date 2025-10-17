@@ -1,38 +1,41 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import declarative_base
+
 from src.config.settings import settings
 
-# Configuración de base de datos
+# Configuración de base de datos async
 engine = create_async_engine(
-    settings.DB_URL,
+    settings.DATABASE_URL,
+    echo=True,  # Opcional: muestra las queries SQL en consola
+    future=True,
 )
 
-SessionLocal = sessionmaker(
-    autocommit=False, class_=AsyncSession, expire_on_commit=False
+# Para async usa async_sessionmaker en lugar de sessionmaker
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
 )
+
+Base = declarative_base()
 
 
 async def get_db():
     """
     Dependency para obtener sesión de base de datos en FastAPI.
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def run_migrations():
-    """
-    Ejecuta las migraciones de Alembic automáticamente.
-    """
-    try:
-        from alembic.config import Config
-        from alembic import command
-
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        print("Migraciones ejecutadas exitosamente.")
-    except Exception as error:
-        print("Error al ejecutar migraciones:", error)
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

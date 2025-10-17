@@ -6,6 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a FastAPI-based backoffice system for point of sale management in a gas station (grifo). It handles internal operations, inventory, sales, users, and administrative reports.
 
+### Multitenant Architecture
+
+This system follows a **database-per-tenant** multitenant architecture. Each company (tenant) has its own isolated PostgreSQL database, with subdomain-based routing to determine which database to connect to.
+
+**Key architectural document:** `docs/base.md` - Contains the complete multitenant architecture plan, including:
+- Database schema for central registry and tenant databases
+- Subdomain resolution flow
+- Tenant creation process
+- FastAPI implementation examples with SQLAlchemy
+
+Always reference `docs/base.md` when working on multitenant features or database isolation.
+
 ## Development Commands
 
 ### Database Setup
