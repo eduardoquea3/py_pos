@@ -9,19 +9,13 @@ from alembic import context
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from src.config.db import CentralBase, TenantBase
+from src.config.db import TenantBase
 from src.config.settings import settings
-
-# ============================================
-# MODELOS DE LA DB CENTRAL
-# ============================================
-from src.modules.company.model import Company  # noqa: F401
 
 # ============================================
 # MODELOS DE LA DB TENANT
 # ============================================
 from src.modules.serie.model import Serie  # noqa: F401
-from src.modules.tenant.model import Tenant  # noqa: F401
 from src.modules.user.model import User  # noqa: F401
 
 config = context.config
@@ -29,16 +23,31 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# IMPORTANTE: Este alembic maneja SOLO la DB central (tenants y companies)
-# Para las DB de tenants, se usará un alembic separado
-target_metadata = CentralBase.metadata
+# IMPORTANTE: Este alembic maneja SOLO las DB de tenants (users, series, etc.)
+# Para la DB central (tenants y companies), se usa el alembic principal
+target_metadata = TenantBase.metadata
 
 
 def get_url():
-    return settings.DB_URL
+    """
+    Obtiene la URL de la base de datos del tenant.
+    Por defecto usa DB_URL, pero puede ser sobrescrito con TENANT_DB_URL
+    para aplicar migraciones a un tenant específico.
+    """
+    return os.getenv("TENANT_DB_URL", settings.DB_URL)
 
 
 def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+    """
     url = get_url()
     context.configure(
         url=url,
@@ -52,6 +61,11 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+    """
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = get_url()
 

@@ -1,44 +1,53 @@
-from datetime import datetime
-from uuid import uuid4
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
-from sqlalchemy import Column, DateTime, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
-from src.config.db import Base
+from src.config.db import CentralBase
 
 
-class Tenant(Base):
+class Tenant(CentralBase):
     """
-    Modelo de Tenant (Empresa) para la base de datos central.
+    Modelo de Tenant (Empresa) para la base de datos CENTRAL.
     Cada tenant tiene su propia base de datos aislada.
+
+    Este modelo solo existe en la DB central, NO en las DB de cada tenant.
     """
 
     __tablename__ = "tenants"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4, index=True)
-    name = Column(String(255), nullable=False, comment="Nombre de la empresa")
-    subdomain = Column(
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, index=True)
+    name: Mapped[str] = mapped_column(
+        String(255), comment="Nombre de la empresa", nullable=False
+    )
+    subdomain: Mapped[str] = mapped_column(
         String(100),
         unique=True,
-        nullable=False,
         index=True,
         comment="Subdominio asignado (ej: 'acme')",
-    )
-    db_name = Column(
-        String(100), unique=True, nullable=False, comment="Nombre de la base de datos"
-    )
-    db_url = Column(
-        Text, nullable=False, comment="URL de conexión a la base de datos del tenant"
-    )
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    status = Column(
-        String(20),
-        default="active",
         nullable=False,
-        comment="Estado: active, paused, suspended",
     )
-    admin_user_id = Column(
-        UUID(as_uuid=True), nullable=True, comment="ID del usuario administrador"
+    db_name: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        comment="Nombre de la base de datos",
+        nullable=False,
+    )
+    db_url: Mapped[str] = mapped_column(
+        Text,
+        comment="URL de conexión a la base de datos del tenant",
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(
+        String(20),
+        comment="Estado: active, paused, suspended",
+        nullable=False,
+        default="active",
+    )
+    admin_user_id: Mapped[UUID | None] = mapped_column(
+        comment="ID del usuario administrador", nullable=True
     )
 
     def __repr__(self):

@@ -15,12 +15,20 @@ def configure_logging(log_level: str = LogLevels.error):
     log_level = str(log_level).upper()
     log_levels = [level.value for level in LogLevels]
 
+    # logging general de tu app
     if log_level not in log_levels:
         logging.basicConfig(level=LogLevels.error)
-        return
-
-    if log_level == LogLevels.debug:
+    elif log_level == LogLevels.debug:
         logging.basicConfig(level=LogLevels.debug, format=LOG_FORMAT_DEBUG)
-        return
+    else:
+        logging.basicConfig(level=log_level)
 
-    logging.basicConfig(level=log_level)
+    # 🔥 Apagar Uvicorn
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+    # 🔥 Desactivar logs verbosos de SQLAlchemy
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)

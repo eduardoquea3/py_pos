@@ -1,16 +1,18 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
 
-from src.config.db import Base
+from src.config.db import TenantBase
 
 
-class User(Base):
+class User(TenantBase):
     """
-    Modelo de Usuario para la base de datos central.
-    Los usuarios pueden ser globales (tenant_id=NULL) o pertenecer a un tenant específico.
+    Modelo de Usuario para la base de datos del TENANT.
+    Cada tenant tiene su propia tabla de usuarios en su propia base de datos.
+
+    Este modelo existe SOLO en las DB de cada tenant, NO en la DB central.
     """
 
     __tablename__ = "users"
@@ -23,15 +25,9 @@ class User(Base):
         String(50),
         default="user",
         nullable=False,
-        comment="Roles: superadmin, admin, user",
+        comment="Roles: admin, user, manager",
     )
     is_active = Column(Boolean, default=True, nullable=False)
-    tenant_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=True,
-        comment="NULL para usuarios globales",
-    )
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False

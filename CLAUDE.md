@@ -18,7 +18,55 @@ This system follows a **database-per-tenant** multitenant architecture. Each com
 
 Always reference `docs/base.md` when working on multitenant features or database isolation.
 
+#### Database Separation
+
+The system uses **two separate databases**:
+
+1. **Central DB** (`DB_URL` in settings.py):
+   - Contains ONLY: `tenants` and `companies` tables
+   - Managed by main Alembic: `alembic.ini` / `alembic/`
+   - Uses `CentralBase` from `src/config/db.py`
+   - Models: `src/modules/tenant/model.py`, `src/modules/company/model.py`
+
+2. **Tenant DBs** (one per tenant):
+   - Contains ALL business models: `users`, `serie`, products, sales, etc.
+   - Managed by tenant Alembic: `alembic_tenant.ini` / `alembic_tenant/`
+   - Uses `TenantBase` from `src/config/db.py`
+   - Models: `src/modules/user/`, `src/modules/serie/`, etc.
+
+**Important:** When creating new models, determine if they belong to:
+- Central DB (tenant management) → use `CentralBase` and update `alembic/env.py`
+- Tenant DB (business data) → use `TenantBase` and update `alembic_tenant/env.py`
+
 ## Development Commands
+
+### Database Migrations
+
+#### Central DB Migrations (tenants & companies)
+```bash
+# Generate migration for central DB
+uv run alembic revision --autogenerate -m "Description"
+
+# Apply migrations to central DB
+uv run alembic upgrade head
+
+# View current version
+uv run alembic current
+```
+
+#### Tenant DB Migrations (users, series, business data)
+```bash
+# Generate migration for tenant DBs
+uv run alembic -c alembic_tenant.ini revision --autogenerate -m "Description"
+
+# Apply migrations to a specific tenant DB
+TENANT_DB_URL="postgresql://user:pass@localhost:5432/tenant_acme" \
+  uv run alembic -c alembic_tenant.ini upgrade head
+
+# View current version of tenant DB
+TENANT_DB_URL="postgresql://user:pass@localhost:5432/tenant_acme" \
+  uv run alembic -c alembic_tenant.ini current
+```
 
 ### Database Setup
 ```bash
@@ -58,7 +106,9 @@ Configure `.env` file with PostgreSQL connection details:
 - `DB_HOST`: Database host (default: localhost)
 - `DB_NAME`: Database name (default: pos_database)
 - `DB_USER`: Database user (default: pos_user)
-- `DB_PASSWORD`: Database password (default: pos_password)
+- `DB_PASS`: Database password (default: pos_password)
+- `DB_PORT`: Database port (default: 5432)
+- `DB_URL`: Database URL (default: postgresql://pos_user:pos_password@localhost:5432/pos_database)
 
 ## Architecture
 
@@ -71,7 +121,7 @@ Configure `.env` file with PostgreSQL connection details:
 ### Key Components
 
 **Database Layer (`src/config/database.py`)**
-- Custom `DatabaseEngine` class using psycopg2 connection pooling
+- Custom `DatabaseEngine` class using psycopg (version 3) connection pooling
 - Supports stored procedure execution via `execute_procedure()` method
 - Uses environment variables for database configuration
 
@@ -92,7 +142,7 @@ The application expects PostgreSQL stored procedures for database operations:
 ### Dependencies
 Key technologies used:
 - FastAPI with standard extras for web framework
-- psycopg2-binary for PostgreSQL connectivity
+- psycopg (version 3) for PostgreSQL connectivity with async support
 - bcrypt and passlib for password handling
 - JWT for token management
 - slowapi for rate limiting
@@ -100,39 +150,47 @@ Key technologies used:
 
 ## Development Guidelines
 
-### Feature Structure Convention
-When creating a new feature folder in `src/features/`, ALWAYS include these five files:
+### Module Structure Convention
+When creating a new module folder in `src/modules/`, ALWAYS include these five files:
 - `__init__.py` - Package initialization
-- `routes.py` - FastAPI routes and endpoints
-- `model.py` - SQLAlchemy models
+- `router.py` - FastAPI routes and endpoints
+- `model.py` - SQLAlchemy models (inherit from `CentralBase` or `TenantBase`)
 - `schema.py` - Pydantic schemas for request/response validation
-- `service.py` - Business logic and database operations
+- `service.py` - Business logic and database operations (use FUNCTIONS, not classes)
 
 **Exception:** For the `common/` folder (static data tables), only include:
 - `__init__.py`
 - `{table_name}.py` - Named after the actual table (e.g., `countries.py`, `currencies.py`)
 
-Example structure for a regular feature:
+Example structure for a tenant module (business data):
 ```
-src/features/products/
+src/modules/products/
 ├── __init__.py
-├── routes.py
-├── model.py
+├── router.py
+├── model.py          # class Product(TenantBase): ...
 ├── schema.py
-└── service.py
+└── service.py        # def create_product(db, data): ...
 ```
 
-Example structure for common/static data:
+Example structure for a central module (tenant management):
 ```
-src/features/common/
+src/modules/company/
 ├── __init__.py
-├── countries.py
-├── currencies.py
-└── payment_methods.py
+├── router.py
+├── model.py          # class Company(CentralBase): ...
+├── schema.py
+└── service.py        # def create_company(db, data): ...
 ```
 
 ### Adding New Features
-1. Create feature folder with required files
-2. Add model import to `alembic/env.py`
-3. Register routes in `src/config/api.py`
-4. Generate migration: `uv run alembic revision --autogenerate -m "Add [feature]"`
+1. Determine if the feature belongs to Central DB or Tenant DB
+2. Create module folder with required files
+3. **For Central DB modules:**
+   - Use `CentralBase` in model.py
+   - Add model import to `alembic/env.py` (Central models section)
+   - Generate migration: `uv run alembic revision --autogenerate -m "Add [feature]"`
+4. **For Tenant DB modules:**
+   - Use `TenantBase` in model.py
+   - Add model import to `alembic_tenant/env.py` (Tenant models section)
+   - Generate migration: `uv run alembic -c alembic_tenant.ini revision --autogenerate -m "Add [feature]"`
+5. Register routes in `src/config/api.py`

@@ -1,41 +1,70 @@
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from src.config.settings import settings
 
-# Configuración de base de datos async
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=True,  # Opcional: muestra las queries SQL en consola
-    future=True,
+# ============================================
+# BASE DE DATOS CENTRAL (Central Registry)
+# ============================================
+# Esta base de datos contiene solo:
+# - tenants: registro de todos los tenants
+# - companies: registro de compañías (futuro)
+central_engine = create_engine(settings.DB_URL, echo=False)
+CentralSessionLocal = sessionmaker(
+    bind=central_engine, autoflush=False, autocommit=False
 )
-
-# Para async usa async_sessionmaker en lugar de sessionmaker
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
-
-Base = declarative_base()
+CentralBase = declarative_base()
 
 
-async def get_db():
-    """
-    Dependency para obtener sesión de base de datos en FastAPI.
-    """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+def get_central_db():
+    """Sesión para la base de datos central (solo tenants y companies)"""
+    db = CentralSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# ============================================
+# BASE DE DATOS TENANT (Por Tenant)
+# ============================================
+# Esta base de datos contiene todos los modelos de negocio:
+# - users, series, products, sales, inventory, etc.
+# Se conecta dinámicamente según el tenant activo
+TenantBase = declarative_base()
+
+# Este engine se configurará dinámicamente por tenant
+# mediante middleware de FastAPI
+tenant_engine = None
+TenantSessionLocal = None
+
+
+def get_tenant_db():
+    """Sesión para la base de datos del tenant activo"""
+    if TenantSessionLocal is None:
+        raise RuntimeError(
+            "Tenant database not configured. Use set_tenant_engine() first."
+        )
+    db = TenantSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def set_tenant_engine(db_url: str):
+    """Configura el engine para el tenant activo"""
+    global tenant_engine, TenantSessionLocal
+    tenant_engine = create_engine(db_url, echo=False)
+    TenantSessionLocal = sessionmaker(
+        bind=tenant_engine, autoflush=False, autocommit=False
+    )
+
+
+# Alias para compatibilidad (deprecated, usar CentralBase o TenantBase explícitamente)
+Base = CentralBase
+
+
+def get_db():
+    """Deprecated: Usar get_central_db() o get_tenant_db() explícitamente"""
+    return get_central_db()

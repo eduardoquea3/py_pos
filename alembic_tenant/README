@@ -1,0 +1,44 @@
+# Alembic Tenant - Migraciones para Bases de Datos de Tenants
+
+Este directorio contiene las migraciones para las bases de datos de cada tenant.
+
+## Uso
+
+### Generar una nueva migración
+
+```bash
+# Genera una migración basándose en los cambios detectados en los modelos
+uv run alembic -c alembic_tenant.ini revision --autogenerate -m "Descripción del cambio"
+```
+
+### Aplicar migraciones a un tenant específico
+
+```bash
+# Aplica migraciones a la DB especificada en TENANT_DB_URL
+TENANT_DB_URL="postgresql://user:pass@localhost:5432/tenant_acme" \
+  uv run alembic -c alembic_tenant.ini upgrade head
+```
+
+### Ver el estado actual de migraciones
+
+```bash
+TENANT_DB_URL="postgresql://user:pass@localhost:5432/tenant_acme" \
+  uv run alembic -c alembic_tenant.ini current
+```
+
+### Ver el historial de migraciones
+
+```bash
+uv run alembic -c alembic_tenant.ini history
+```
+
+## Modelos incluidos en las DB de Tenants
+
+- `users`: Usuarios del tenant
+- `serie`: Series del tenant
+- (futuros modelos de negocio)
+
+## Importante
+
+- Este alembic es SOLO para las bases de datos de los tenants
+- Para la base de datos central (tenants y companies), usar el alembic principal: `alembic.ini`
