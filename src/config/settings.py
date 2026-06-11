@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    ENV: str = "development"
+
     # Database
     DB_URL: str
     DB_USER: str
