@@ -53,6 +53,11 @@ def get_company(db: Session, company_id: UUID) -> Company | None:
     return db.query(Company).filter(Company.id == company_id).first()
 
 
+def get_companies(db: Session) -> list[Company]:
+    """Obtiene todas las compañías"""
+    return db.query(Company).all()
+
+
 def get_companies_by_tenant(db: Session, tenant_id: UUID) -> list[Company]:
     """Obtiene todas las compañías de un tenant"""
     return db.query(Company).filter(Company.tenant_id == tenant_id).all()
