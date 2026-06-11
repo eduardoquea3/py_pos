@@ -56,6 +56,12 @@ def get_company(company_id: UUID, db: Session = Depends(get_central_db)):
     return company
 
 
+@router.get("/", response_model=list[CompanyResponse])
+def list_companies(db: Session = Depends(get_central_db)):
+    """Lista todas las compañías"""
+    return service.get_companies(db)
+
+
 @router.get("/tenant/{tenant_id}", response_model=list[CompanyResponse])
 def get_companies_by_tenant(tenant_id: UUID, db: Session = Depends(get_central_db)):
     """Obtiene todas las compañías de un tenant"""
